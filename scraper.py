@@ -12,6 +12,12 @@ content_data = []
 xml = """<?xml version="1.0" encoding="UTF-8"?>
 <data>"""
 count = 0
+authors = {'Marek Feder': [],
+           'Walfir Technologies': [],
+           'Vlastimil Bijota': [],
+           'Jakub Kralovanský': [],
+           'Slavomír Kanuk': [],
+           'Jan Sedlacik': []}
 
 
 def parse_sitemap(base_url):
@@ -35,11 +41,88 @@ def parse_sitemap(base_url):
     urls = urls[6:]
 
     # parse html of all posts
-    for url in tqdm(urls):
-        parse_post(url)
+    for url in tqdm(urls[:1]):
+        url = "https://investro.com/market-movers/other/inflation-in-eu-to-fall-to-3-2-by-december"
+        if "/market-movers/" in url:
+            parse_message(url)
+        else:
+            parse_post(url)
 
-    with open("test.xml", "a", encoding="UTF-8") as text_file:
+    with open("messages.xml", "a", encoding="UTF-8") as text_file:
         text_file.write("\n</data>")
+    with open("posts.xml", "a", encoding="UTF-8") as text_file:
+        text_file.write("\n</data>")
+
+
+def parse_message(url):
+    html = urlopen(Request(url)).read().decode('utf-8')
+    doc = parseString(html)
+
+    # title
+    title = doc.getElementsByTagName("title")[0].firstChild.nodeValue
+    index = post_template.find('</Title>')
+    post = post_template[:index] + title + post_template[index:]
+
+    # content
+    h1 = doc.getElementsByTagName("h1")[0].firstChild.nodeValue
+    message = doc.getElementsByTagName("h2")[0]
+    h2 = message.firstChild.nodeValue
+    p = message.parentNode.lastChild.firstChild.nodeValue
+    content = f"<h1>{h1}</h1>\n<h2>{h2}</h2>\n<p>{p}</p>"
+    index = post.find(']]></Content>')
+    post = post[:index] + content + post[index:]
+
+    # excerpt
+    index = post.find('</Excerpt>')
+    post = post[:index] + p + post[index:]
+
+    # date published
+    match = re.search(r'"published_at":".*T', html)
+    result = match.group()
+    date = result.split('":"', 1)[1]
+    date = date.split('T', 1)[0]
+    index = post.find('</Date>')
+    post = post[:index] + date + post[index:]
+
+    # permalink
+    index = post.find('</Permalink>')
+    post = post[:index] + url + post[index:]
+
+    # category
+    parsed_url = urlparse(url)
+    full_path = os.path.split(parsed_url.path)
+    path = os.path.split(full_path[0])
+    index = post.find('</Categories>')
+    post = post[:index] + path[1] + post[index:]
+
+    # slug
+    index = post.find('</Slug>')
+    post = post[:index] + full_path[1] + post[index:]
+
+    # author
+    author = doc.getElementsByTagName("h1")[0].parentNode.parentNode.lastChild.firstChild.firstChild.lastChild\
+        .firstChild.nodeValue
+
+    # _yoast_wpseo_title
+    index = post.find('</_yoast_wpseo_title>')
+    post = post[:index] + title + post[index:]
+
+    meta_nodes = doc.getElementsByTagName("meta")
+    # _yoast_wpseo_metadesc, _yoast_wpseo_opengraph-description
+    for node in meta_nodes:
+        if node.getAttribute("name") == "description":
+            description = node.getAttribute("content")
+            index = post.find('</_yoast_wpseo_metadesc>')
+            post = post[:index] + description + post[index:]
+            index = post.find('</_yoast_wpseo_opengraph-description>')
+            post = post[:index] + description + post[index:]
+
+    # _yoast_wpseo_opengraph-title
+    index = post.find('</_yoast_wpseo_opengraph-title>')
+    post = post[:index] + title + post[index:]
+
+    with open("messages.xml", "a", encoding="UTF-8") as text_file:
+        text_file.write("\n" + post)
 
 
 def parse_post(url):
@@ -101,7 +184,7 @@ def parse_post(url):
     index = post.find('</ImageFeatured>')
     post = post[:index] + img_url + post[index:]
 
-    # categories
+    # category
     parsed_url = urlparse(url)
     path = os.path.split(parsed_url.path)
     index = post.find('</Categories>')
@@ -125,7 +208,28 @@ def parse_post(url):
             index = post.find('</PostModifiedDate>')
             post = post[:index] + node.getAttribute("content")[:10] + post[index:]
 
-    with open("test.xml", "a", encoding="UTF-8") as text_file:
+    # _yoast_wpseo_title
+    index = post.find('</_yoast_wpseo_title>')
+    post = post[:index] + title + post[index:]
+
+    # _yoast_wpseo_metadesc, _yoast_wpseo_opengraph-description
+    for node in meta_nodes:
+        if node.getAttribute("name") == "description":
+            description = node.getAttribute("content")
+            index = post.find('</_yoast_wpseo_metadesc>')
+            post = post[:index] + description + post[index:]
+            index = post.find('</_yoast_wpseo_opengraph-description>')
+            post = post[:index] + description + post[index:]
+
+    # _yoast_wpseo_opengraph-title
+    index = post.find('</_yoast_wpseo_opengraph-title>')
+    post = post[:index] + title + post[index:]
+
+    # _yoast_wpseo_opengraph-image
+    index = post.find('</_yoast_wpseo_opengraph-image>')
+    post = post[:index] + img_url + post[index:]
+
+    with open("posts.xml", "a", encoding="UTF-8") as text_file:
         text_file.write("\n" + post)
     content_data = []
 

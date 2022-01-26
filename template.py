@@ -30,4 +30,9 @@ post_template = """<post>
 <CommentStatus>closed</CommentStatus>
 <PingStatus>closed</PingStatus>
 <PostModifiedDate></PostModifiedDate>
+<_yoast_wpseo_title></_yoast_wpseo_title>
+<_yoast_wpseo_metadesc></_yoast_wpseo_metadesc>
+<_yoast_wpseo_opengraph-title></_yoast_wpseo_opengraph-title>
+<_yoast_wpseo_opengraph-description></_yoast_wpseo_opengraph-description>
+<_yoast_wpseo_opengraph-image></_yoast_wpseo_opengraph-image>
 </post>"""
