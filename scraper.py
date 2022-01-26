@@ -5,6 +5,7 @@ from tqdm import tqdm
 from urllib.parse import urlparse
 import os.path
 import re
+from datetime import datetime
 from template import post_template
 
 
@@ -12,12 +13,15 @@ content_data = []
 xml = """<?xml version="1.0" encoding="UTF-8"?>
 <data>"""
 count = 0
-authors = {'Marek Feder': [],
-           'Walfir Technologies': [],
-           'Vlastimil Bijota': [],
-           'Jakub Kralovanský': [],
-           'Slavomír Kanuk': [],
-           'Jan Sedlacik': []}
+authors = {'Marek Feder': [7, "marekfeder", "feder@investro.com", "Marek", "Feder"],
+           'Walfir Technologies': [11, "walfirtech", "snirc@investro.com", "Walfir", "Technologies"],
+           'Vlastimil Bijota': [10, "vlastimilbijota", "bijota@sankasystems.com", "Vlastimil", "Bijota"],
+           'Jakub Kralovanský': [5, "jakubkralovansky", "kralovansky@investro.com", "Jakub", "Kralovanský"],
+           'Slavomír Kanuk': [9, "slavomirkanuk", "slavomir.kanuk@gmail.com", "Slavomír", "Kanuk"],
+           'Jan Sedlacik': [6, "jansedlacik", "sedlacik@imfrontman.com", "Jan", "Sedlacik"],
+           'Peter Rehak': [8, "peterrehak", "rehak@investro.com", "Peter", "Rehak"],
+           'Tomáš Drdla': [3, "jsme@webotvurci.cz", "jsme@webotvurci.cz", "Tomáš", "Drdla"]}
+images = []
 
 
 def parse_sitemap(base_url):
@@ -41,8 +45,7 @@ def parse_sitemap(base_url):
     urls = urls[6:]
 
     # parse html of all posts
-    for url in tqdm(urls[:1]):
-        url = "https://investro.com/market-movers/other/inflation-in-eu-to-fall-to-3-2-by-december"
+    for url in tqdm(urls[531:]):
         if "/market-movers/" in url:
             parse_message(url)
         else:
@@ -77,12 +80,20 @@ def parse_message(url):
     post = post[:index] + p + post[index:]
 
     # date published
-    match = re.search(r'"published_at":".*T', html)
-    result = match.group()
-    date = result.split('":"', 1)[1]
-    date = date.split('T', 1)[0]
-    index = post.find('</Date>')
-    post = post[:index] + date + post[index:]
+    # date = doc.getElementsByTagName("h1")[0].parentNode.parentNode.lastChild.firstChild.firstChild.firstChild \
+    #     .firstChild.firstChild.nodeValue
+    # parts = date.split(' ')
+    # day = parts[0].zfill(2)
+    # month = parts[1].split(',')[0]
+    # datetime_object = datetime.strptime(month, "%B")
+    # month = str(datetime_object.month).zfill(2)
+    # year = "2022" if month == "01" else "2021"
+    # index = post.find('</Date>')
+    # post = post[:index] + f"{year}-{month}-{day}" + post[index:]
+
+    # post type
+    index = post.find('</PostType>')
+    post = post[:index] + "market-movers" + post[index:]
 
     # permalink
     index = post.find('</Permalink>')
@@ -100,8 +111,21 @@ def parse_message(url):
     post = post[:index] + full_path[1] + post[index:]
 
     # author
-    author = doc.getElementsByTagName("h1")[0].parentNode.parentNode.lastChild.firstChild.firstChild.lastChild\
-        .firstChild.nodeValue
+    try:
+        author = doc.getElementsByTagName("h1")[0].parentNode.parentNode.lastChild.firstChild.firstChild.lastChild \
+            .firstChild.nodeValue
+    except Exception:
+        author = "Tomáš Drdla"
+    index = post.find('</AuthorID>')
+    post = post[:index] + str(authors[author][0]) + post[index:]
+    index = post.find('</AuthorUsername>')
+    post = post[:index] + authors[author][1] + post[index:]
+    index = post.find('</AuthorEmail>')
+    post = post[:index] + authors[author][2] + post[index:]
+    index = post.find('</AuthorFirstName>')
+    post = post[:index] + authors[author][3] + post[index:]
+    index = post.find('</AuthorLastName>')
+    post = post[:index] + authors[author][4] + post[index:]
 
     # _yoast_wpseo_title
     index = post.find('</_yoast_wpseo_title>')
@@ -127,6 +151,8 @@ def parse_message(url):
 
 def parse_post(url):
     global content_data
+    global authors
+    global images
     html = urlopen(Request(url)).read().decode('utf-8')
     doc = parseString(html)
 
@@ -156,21 +182,39 @@ def parse_post(url):
             post = post[:index] + node.getAttribute("content")[:10] + post[index:]
 
     # author
+    for node in meta_nodes:
+        if node.getAttribute("property") == "article:author":
+            author = node.getAttribute("content")
     index = post.find('</AuthorID>')
-    post = post[:index] + "1" + post[index:]
+    post = post[:index] + str(authors[author][0]) + post[index:]
     index = post.find('</AuthorUsername>')
-    post = post[:index] + "matej" + post[index:]
+    post = post[:index] + authors[author][1] + post[index:]
     index = post.find('</AuthorEmail>')
-    post = post[:index] + "matej@webotvurci.cz" + post[index:]
+    post = post[:index] + authors[author][2] + post[index:]
+    index = post.find('</AuthorFirstName>')
+    post = post[:index] + authors[author][3] + post[index:]
+    index = post.find('</AuthorLastName>')
+    post = post[:index] + authors[author][4] + post[index:]
+
+    if authors[author][1] not in images:
+        images.append(authors[author][1])
+        match = re.search(r'background-image:url\(https://cdn.investro.com/images/small/.*\)', html)
+        result = match.group()
+        author_img = result.split("(", 1)[1][:-1]
+        print(f"\n{author}: {author_img}")
+
+    # post type
+    index = post.find('</PostType>')
+    post = post[:index] + "post" + post[index:]
 
     # permalink
     index = post.find('</Permalink>')
     post = post[:index] + url + post[index:]
 
     # image url
-    match = re.search(r'\{background-image:url\(https://cdn.investro.com/images/large/.*\)', html)
+    match = re.search(r'background-image:url\(https://cdn.investro.com/images/large/.*\)', html)
     if not match:
-        match = re.search(r'\{background-image:url\(https://investro.com/article/.*\)', html)
+        match = re.search(r'background-image:url\(https://investro.com/article/.*\)', html)
     result = match.group()
     img_url = result.split("(", 1)[1][:-1]
     index = post.find('</ImageURL>')

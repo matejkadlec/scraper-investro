@@ -4,7 +4,7 @@ post_template = """<post>
 <Content><![CDATA[]]></Content>
 <Excerpt></Excerpt>
 <Date></Date>
-<PostType>post</PostType>
+<PostType></PostType>
 <Permalink></Permalink>
 <ImageURL></ImageURL>
 <ImageTitle></ImageTitle>
