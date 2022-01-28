@@ -45,9 +45,10 @@ def parse_sitemap(base_url):
     urls = urls[6:]
 
     # parse html of all posts
-    for url in tqdm(urls[531:]):
+    for url in tqdm(urls):
         if "/market-movers/" in url:
-            parse_message(url)
+            continue
+            # parse_message(url)
         else:
             parse_post(url)
 
@@ -159,7 +160,7 @@ def parse_post(url):
     # title
     title = doc.getElementsByTagName("title")[0].firstChild.nodeValue
     index = post_template.find('</Title>')
-    post = post_template[:index] + title + post_template[index:]
+    post = post_template[:index] + title[:-15] + post_template[index:]
 
     # excerpt & content
     article = doc.getElementsByTagName("article")[0]
@@ -175,33 +176,54 @@ def parse_post(url):
     # meta nodes fo date, author and tags
     meta_nodes = doc.getElementsByTagName("meta")
 
-    # date published
+    # all meta tags
     for node in meta_nodes:
+        # date published
         if node.getAttribute("property") == "article:published_time":
             index = post.find('</Date>')
             post = post[:index] + node.getAttribute("content")[:10] + post[index:]
-
-    # author
-    for node in meta_nodes:
+        # author
         if node.getAttribute("property") == "article:author":
             author = node.getAttribute("content")
-    index = post.find('</AuthorID>')
-    post = post[:index] + str(authors[author][0]) + post[index:]
-    index = post.find('</AuthorUsername>')
-    post = post[:index] + authors[author][1] + post[index:]
-    index = post.find('</AuthorEmail>')
-    post = post[:index] + authors[author][2] + post[index:]
-    index = post.find('</AuthorFirstName>')
-    post = post[:index] + authors[author][3] + post[index:]
-    index = post.find('</AuthorLastName>')
-    post = post[:index] + authors[author][4] + post[index:]
+            index = post.find('</AuthorID>')
+            post = post[:index] + str(authors[author][0]) + post[index:]
+            index = post.find('</AuthorUsername>')
+            post = post[:index] + authors[author][1] + post[index:]
+            index = post.find('</AuthorEmail>')
+            post = post[:index] + authors[author][2] + post[index:]
+            index = post.find('</AuthorFirstName>')
+            post = post[:index] + authors[author][3] + post[index:]
+            index = post.find('</AuthorLastName>')
+            post = post[:index] + authors[author][4] + post[index:]
+        # image
+        if node.getAttribute("property") == "og:image":
+            index = post.find('</ImageURL>')
+            post = post[:index] + node.getAttribute("content") + post[index:]
+            index = post.find('</ImageFeatured>')
+            post = post[:index] + node.getAttribute("content") + post[index:]
+            index = post.find('</_yoast_wpseo_opengraph-image>')
+            post = post[:index] + node.getAttribute("content") + post[index:]
+        if node.getAttribute("property") == "og:image:alt":
+            index = post.find('</ImageTitle>')
+            post = post[:index] + node.getAttribute("content") + post[index:]
+        # date modified
+        if node.getAttribute("property") == "article:modified_time":
+            index = post.find('</PostModifiedDate>')
+            post = post[:index] + node.getAttribute("content")[:10] + post[index:]
+        # _yoast_wpseo_metadesc, _yoast_wpseo_opengraph-description
+        if node.getAttribute("name") == "description":
+            description = node.getAttribute("content")
+            index = post.find('</_yoast_wpseo_metadesc>')
+            post = post[:index] + description + post[index:]
+            index = post.find('</_yoast_wpseo_opengraph-description>')
+            post = post[:index] + description + post[index:]
 
-    if authors[author][1] not in images:
-        images.append(authors[author][1])
-        match = re.search(r'background-image:url\(https://cdn.investro.com/images/small/.*\)', html)
-        result = match.group()
-        author_img = result.split("(", 1)[1][:-1]
-        print(f"\n{author}: {author_img}")
+    # if authors[author][1] not in images:
+    #     images.append(authors[author][1])
+    #     match = re.search(r'background-image:url\(https://cdn.investro.com/images/small/.*\)', html)
+    #     result = match.group()
+    #     author_img = result.split("(", 1)[1][:-1]
+    #     print(f"\n{author}: {author_img}")
 
     # post type
     index = post.find('</PostType>')
@@ -212,21 +234,13 @@ def parse_post(url):
     post = post[:index] + url + post[index:]
 
     # image url
-    match = re.search(r'background-image:url\(https://cdn.investro.com/images/large/.*\)', html)
-    if not match:
-        match = re.search(r'background-image:url\(https://investro.com/article/.*\)', html)
-    result = match.group()
-    img_url = result.split("(", 1)[1][:-1]
-    index = post.find('</ImageURL>')
-    post = post[:index] + img_url + post[index:]
-
-    # image title
-    index = post.find('</ImageTitle>')
-    post = post[:index] + img_url.rsplit('/', 1)[-1].split(".", 1)[0] + post[index:]
-
-    # image featured
-    index = post.find('</ImageFeatured>')
-    post = post[:index] + img_url + post[index:]
+    # match = re.search(r'background-image:url\(https://cdn.investro.com/images/large/.*\)', html)
+    # if not match:
+    #     match = re.search(r'background-image:url\(https://investro.com/article/.*\)', html)
+    # result = match.group()
+    # img_url = result.split("(", 1)[1][:-1]
+    # index = post.find('</ImageURL>')
+    # post = post[:index] + img_url + post[index:]
 
     # category
     parsed_url = urlparse(url)
@@ -246,45 +260,58 @@ def parse_post(url):
     index = post.find('</Slug>')
     post = post[:index] + path[1] + post[index:]
 
-    # date modified
-    for node in meta_nodes:
-        if node.getAttribute("property") == "article:modified_time":
-            index = post.find('</PostModifiedDate>')
-            post = post[:index] + node.getAttribute("content")[:10] + post[index:]
-
     # _yoast_wpseo_title
     index = post.find('</_yoast_wpseo_title>')
-    post = post[:index] + title + post[index:]
-
-    # _yoast_wpseo_metadesc, _yoast_wpseo_opengraph-description
-    for node in meta_nodes:
-        if node.getAttribute("name") == "description":
-            description = node.getAttribute("content")
-            index = post.find('</_yoast_wpseo_metadesc>')
-            post = post[:index] + description + post[index:]
-            index = post.find('</_yoast_wpseo_opengraph-description>')
-            post = post[:index] + description + post[index:]
+    post = post[:index] + title[:-15] + post[index:]
 
     # _yoast_wpseo_opengraph-title
     index = post.find('</_yoast_wpseo_opengraph-title>')
-    post = post[:index] + title + post[index:]
-
-    # _yoast_wpseo_opengraph-image
-    index = post.find('</_yoast_wpseo_opengraph-image>')
-    post = post[:index] + img_url + post[index:]
+    post = post[:index] + title[:-15] + post[index:]
 
     with open("posts.xml", "a", encoding="UTF-8") as text_file:
         text_file.write("\n" + post)
     content_data = []
 
 
+span_caption = False
+span_author = False
+
+
 def get_content(root):
     global content_data
+    global span_caption
+    global span_author
     for node in root.childNodes:
         if node.nodeValue:
-            content_data.append(f"<{node.parentNode.localName}>{node.nodeValue}</{node.parentNode.localName}>")
+            # add class to quote, author and image caption
+            if node.parentNode.localName == "span":
+                if span_caption:
+                    content_data.append(f"<{node.parentNode.localName} class=\"img-caption\">{node.nodeValue}</{node.parentNode.localName}>")
+                    span_caption = False
+                elif span_author:
+                    content_data.append(f"<{node.parentNode.localName} class=\"quote-author\">{node.nodeValue}</{node.parentNode.localName}>")
+                    span_author = False
+                else:
+                    content_data.append(f"<{node.parentNode.localName} class=\"post-quote\">{node.nodeValue}</{node.parentNode.localName}>")
+                    span_author = True
+            # add href to link
+            elif node.parentNode.localName == "a":
+                content_data.append(f"<{node.parentNode.localName} href=\"{node.parentNode.getAttribute('href')}\">{node.nodeValue}</{node.parentNode.localName}>")
+            else:
+                content_data.append(f"<{node.parentNode.localName}>{node.nodeValue}</{node.parentNode.localName}>")
+        # extract content of 'p' element separately
+        elif node.tagName and node.tagName == "p":
+            content_data.append("<p>")
+            for p_child in node.childNodes:
+                if p_child.nodeValue:
+                    content_data.append(f"{p_child.nodeValue}")
+                else:
+                    get_content(p_child)
+            content_data.append("</p>")
+            continue
         elif node.tagName == "img":
             content_data.append(f"<{node.tagName} src=\"{node.getAttribute('src')}\" alt=\"{node.getAttribute('alt')}\">")
+            span_caption = True
         if len(node.childNodes) > 0:
             get_content(node)
     return content_data
