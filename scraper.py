@@ -10,8 +10,6 @@ from template import post_template
 
 
 content_data = []
-xml = """<?xml version="1.0" encoding="UTF-8"?>
-<data>"""
 count = 0
 authors = {'Marek Feder': [7, "marekfeder", "feder@investro.com", "Marek", "Feder"],
            'Walfir Technologies': [11, "walfirtech", "snirc@investro.com", "Walfir", "Technologies"],
@@ -21,7 +19,8 @@ authors = {'Marek Feder': [7, "marekfeder", "feder@investro.com", "Marek", "Fede
            'Jan Sedlacik': [6, "jansedlacik", "sedlacik@imfrontman.com", "Jan", "Sedlacik"],
            'Peter Rehak': [8, "peterrehak", "rehak@investro.com", "Peter", "Rehak"],
            'Tomáš Drdla': [3, "jsme@webotvurci.cz", "jsme@webotvurci.cz", "Tomáš", "Drdla"]}
-images = []
+span_caption = False
+span_author = False
 
 
 def parse_sitemap(base_url):
@@ -81,16 +80,16 @@ def parse_message(url):
     post = post[:index] + p + post[index:]
 
     # date published
-    # date = doc.getElementsByTagName("h1")[0].parentNode.parentNode.lastChild.firstChild.firstChild.firstChild \
-    #     .firstChild.firstChild.nodeValue
-    # parts = date.split(' ')
-    # day = parts[0].zfill(2)
-    # month = parts[1].split(',')[0]
-    # datetime_object = datetime.strptime(month, "%B")
-    # month = str(datetime_object.month).zfill(2)
-    # year = "2022" if month == "01" else "2021"
-    # index = post.find('</Date>')
-    # post = post[:index] + f"{year}-{month}-{day}" + post[index:]
+    date = doc.getElementsByTagName("h1")[0].parentNode.parentNode.lastChild.firstChild.firstChild.firstChild \
+        .firstChild.firstChild.nodeValue
+    parts = date.split(' ')
+    day = parts[0].zfill(2)
+    month = parts[1].split(',')[0]
+    datetime_object = datetime.strptime(month, "%B")
+    month = str(datetime_object.month).zfill(2)
+    year = "2022" if month == "01" else "2021"
+    index = post.find('</Date>')
+    post = post[:index] + f"{year}-{month}-{day}" + post[index:]
 
     # post type
     index = post.find('</PostType>')
@@ -176,7 +175,7 @@ def parse_post(url):
     # meta nodes fo date, author and tags
     meta_nodes = doc.getElementsByTagName("meta")
 
-    # all meta tags
+    # meta tags
     for node in meta_nodes:
         # date published
         if node.getAttribute("property") == "article:published_time":
@@ -195,7 +194,7 @@ def parse_post(url):
             post = post[:index] + authors[author][3] + post[index:]
             index = post.find('</AuthorLastName>')
             post = post[:index] + authors[author][4] + post[index:]
-        # image
+        # image url
         if node.getAttribute("property") == "og:image":
             index = post.find('</ImageURL>')
             post = post[:index] + node.getAttribute("content") + post[index:]
@@ -203,6 +202,7 @@ def parse_post(url):
             post = post[:index] + node.getAttribute("content") + post[index:]
             index = post.find('</_yoast_wpseo_opengraph-image>')
             post = post[:index] + node.getAttribute("content") + post[index:]
+        # image title
         if node.getAttribute("property") == "og:image:alt":
             index = post.find('</ImageTitle>')
             post = post[:index] + node.getAttribute("content") + post[index:]
@@ -212,18 +212,10 @@ def parse_post(url):
             post = post[:index] + node.getAttribute("content")[:10] + post[index:]
         # _yoast_wpseo_metadesc, _yoast_wpseo_opengraph-description
         if node.getAttribute("name") == "description":
-            description = node.getAttribute("content")
             index = post.find('</_yoast_wpseo_metadesc>')
-            post = post[:index] + description + post[index:]
+            post = post[:index] + node.getAttribute("content") + post[index:]
             index = post.find('</_yoast_wpseo_opengraph-description>')
-            post = post[:index] + description + post[index:]
-
-    # if authors[author][1] not in images:
-    #     images.append(authors[author][1])
-    #     match = re.search(r'background-image:url\(https://cdn.investro.com/images/small/.*\)', html)
-    #     result = match.group()
-    #     author_img = result.split("(", 1)[1][:-1]
-    #     print(f"\n{author}: {author_img}")
+            post = post[:index] + node.getAttribute("content") + post[index:]
 
     # post type
     index = post.find('</PostType>')
@@ -273,10 +265,6 @@ def parse_post(url):
     content_data = []
 
 
-span_caption = False
-span_author = False
-
-
 def get_content(root):
     global content_data
     global span_caption
@@ -309,9 +297,11 @@ def get_content(root):
                     get_content(p_child)
             content_data.append("</p>")
             continue
+        # add src and alt to image
         elif node.tagName == "img":
             content_data.append(f"<{node.tagName} src=\"{node.getAttribute('src')}\" alt=\"{node.getAttribute('alt')}\">")
             span_caption = True
+        # repeat for each child node with child nodes
         if len(node.childNodes) > 0:
             get_content(node)
     return content_data
