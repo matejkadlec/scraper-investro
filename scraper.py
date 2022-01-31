@@ -4,7 +4,6 @@ from xml.dom.minidom import parseString
 from tqdm import tqdm
 from urllib.parse import urlparse
 import os.path
-import re
 from datetime import datetime
 from template import post_template
 
@@ -24,7 +23,6 @@ span_author = False
 
 
 def parse_sitemap(base_url):
-    global xml
     global count
     # get sitemap as xml
     req = Request(base_url)
@@ -135,13 +133,11 @@ def parse_message(url):
             index = post.find('</_yoast_wpseo_opengraph-description>')
             post = post[:index] + node.getAttribute("content")[:-15] + post[index:]
 
-    # _yoast_wpseo_title
+    # _yoast_wpseo_title, _yoast_wpseo_opengraph-title
     index = post.find('</_yoast_wpseo_title>')
-    post = post[:index] + title[:-15] + post[index:]
-
-    # _yoast_wpseo_opengraph-title
+    post = post[:index] + title + post[index:]
     index = post.find('</_yoast_wpseo_opengraph-title>')
-    post = post[:index] + title[:-15] + post[index:]
+    post = post[:index] + title + post[index:]
 
     with open("messages.xml", "a", encoding="UTF-8") as text_file:
         text_file.write("\n" + post)
@@ -150,7 +146,6 @@ def parse_message(url):
 def parse_post(url):
     global content_data
     global authors
-    global images
     html = urlopen(Request(url)).read().decode('utf-8')
     doc = parseString(html)
 
@@ -223,15 +218,6 @@ def parse_post(url):
     index = post.find('</Permalink>')
     post = post[:index] + url + post[index:]
 
-    # image url
-    # match = re.search(r'background-image:url\(https://cdn.investro.com/images/large/.*\)', html)
-    # if not match:
-    #     match = re.search(r'background-image:url\(https://investro.com/article/.*\)', html)
-    # result = match.group()
-    # img_url = result.split("(", 1)[1][:-1]
-    # index = post.find('</ImageURL>')
-    # post = post[:index] + img_url + post[index:]
-
     # category
     parsed_url = urlparse(url)
     path = os.path.split(parsed_url.path)
@@ -250,13 +236,11 @@ def parse_post(url):
     index = post.find('</Slug>')
     post = post[:index] + path[1] + post[index:]
 
-    # _yoast_wpseo_title
+    # _yoast_wpseo_title, _yoast_wpseo_opengraph-title
     index = post.find('</_yoast_wpseo_title>')
-    post = post[:index] + title[:-15] + post[index:]
-
-    # _yoast_wpseo_opengraph-title
+    post = post[:index] + title + post[index:]
     index = post.find('</_yoast_wpseo_opengraph-title>')
-    post = post[:index] + title[:-15] + post[index:]
+    post = post[:index] + title + post[index:]
 
     with open("posts.xml", "a", encoding="UTF-8") as text_file:
         text_file.write("\n" + post)
