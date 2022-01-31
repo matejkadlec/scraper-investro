@@ -46,8 +46,7 @@ def parse_sitemap(base_url):
     # parse html of all posts
     for url in tqdm(urls):
         if "/market-movers/" in url:
-            continue
-            # parse_message(url)
+            parse_message(url)
         else:
             parse_post(url)
 
@@ -64,7 +63,7 @@ def parse_message(url):
     # title
     title = doc.getElementsByTagName("title")[0].firstChild.nodeValue
     index = post_template.find('</Title>')
-    post = post_template[:index] + title + post_template[index:]
+    post = post_template[:index] + title[:-15] + post_template[index:]
 
     # content
     h1 = doc.getElementsByTagName("h1")[0].firstChild.nodeValue
@@ -127,23 +126,22 @@ def parse_message(url):
     index = post.find('</AuthorLastName>')
     post = post[:index] + authors[author][4] + post[index:]
 
-    # _yoast_wpseo_title
-    index = post.find('</_yoast_wpseo_title>')
-    post = post[:index] + title + post[index:]
-
     meta_nodes = doc.getElementsByTagName("meta")
     # _yoast_wpseo_metadesc, _yoast_wpseo_opengraph-description
     for node in meta_nodes:
         if node.getAttribute("name") == "description":
-            description = node.getAttribute("content")
             index = post.find('</_yoast_wpseo_metadesc>')
-            post = post[:index] + description + post[index:]
+            post = post[:index] + node.getAttribute("content")[:-15] + post[index:]
             index = post.find('</_yoast_wpseo_opengraph-description>')
-            post = post[:index] + description + post[index:]
+            post = post[:index] + node.getAttribute("content")[:-15] + post[index:]
+
+    # _yoast_wpseo_title
+    index = post.find('</_yoast_wpseo_title>')
+    post = post[:index] + title[:-15] + post[index:]
 
     # _yoast_wpseo_opengraph-title
     index = post.find('</_yoast_wpseo_opengraph-title>')
-    post = post[:index] + title + post[index:]
+    post = post[:index] + title[:-15] + post[index:]
 
     with open("messages.xml", "a", encoding="UTF-8") as text_file:
         text_file.write("\n" + post)
@@ -165,11 +163,11 @@ def parse_post(url):
     article = doc.getElementsByTagName("article")[0]
     full_content = get_content(article)
     index = post.find('</Excerpt>')
-    post = post[:index] + full_content[0][3:][:-4] + post[index:]
+    post = post[:index] + full_content[1] + post[index:]
     index = post.find(']]></Content>')
     content = ""
-    for element in full_content[1:]:
-        content += element + "\n"
+    for element in full_content[3:]:
+        content += element + "\n" if element[-1] == ">" and element != "<p>" and not element.endswith("</strong>") else element
     post = post[:index] + content + post[index:]
 
     # meta nodes fo date, author and tags
@@ -213,9 +211,9 @@ def parse_post(url):
         # _yoast_wpseo_metadesc, _yoast_wpseo_opengraph-description
         if node.getAttribute("name") == "description":
             index = post.find('</_yoast_wpseo_metadesc>')
-            post = post[:index] + node.getAttribute("content") + post[index:]
+            post = post[:index] + node.getAttribute("content")[:-15] + post[index:]
             index = post.find('</_yoast_wpseo_opengraph-description>')
-            post = post[:index] + node.getAttribute("content") + post[index:]
+            post = post[:index] + node.getAttribute("content")[:-15] + post[index:]
 
     # post type
     index = post.find('</PostType>')
